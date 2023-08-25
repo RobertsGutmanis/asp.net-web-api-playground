@@ -2,16 +2,17 @@ using API.Data;
 using API.DTOs;
 using API.Models;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
 {
     public class UsersEFController : BaseController
     {
-        DataContextEF _dataContext;
+        IUserRepository _userRepository;
         IMapper _mapper;
-        public UsersEFController(IConfiguration config){
-            _dataContext = new DataContextEF(config);
+        public UsersEFController(IConfiguration config, IUserRepository userRepository){
+            _userRepository = userRepository;
             _mapper = new Mapper(new MapperConfiguration(config => {
                 config.CreateMap<UserDTO, User>();
             }));
@@ -20,21 +21,21 @@ namespace API.Controllers
         // Get Users
         [HttpGet]
         public IEnumerable<User> GetUsers(){
-            return _dataContext.Users.ToList();
+            return _userRepository.GetUsers();
         }
 
         // Get User
         [HttpGet("{id}")]
         public User GetUserById(int id){
-            return _dataContext.Users.Single(u => u.UserId == id);
+            return _userRepository.GetUserById(id);
         }
 
         //Create user
         [HttpPost]
         public IActionResult CreateUser(User user){
             User DbUser = _mapper.Map<User>(user);
-            _dataContext.Users.Add(DbUser);
-            if(_dataContext.SaveChanges() >0){
+            _userRepository.AddEntity(DbUser);
+            if(_userRepository.SaveChanges()){
                 return Ok("User created");
             }
             throw new Exception("Failed to create user");
@@ -44,7 +45,7 @@ namespace API.Controllers
         //Update user
         [HttpPut("{id}")]
         public IActionResult UpdateUser(UserDTO user, int id){
-            User DbUser = _dataContext.Users.Single(u => u.UserId == id);
+            User DbUser = _userRepository.GetUserById(id);
 
             if(DbUser != null){
                 DbUser.FirstName = user.FirstName;
@@ -52,9 +53,8 @@ namespace API.Controllers
                 DbUser.Email = user.Email;
                 DbUser.Gender = user.Gender;
                 DbUser.Active = user.Active;
-                if(_dataContext.SaveChanges() > 0){
+                if(_userRepository.SaveChanges()){
                      return Ok("User updated");
-
                 }
                 throw new Exception("Failed to update user");
             }
@@ -64,9 +64,9 @@ namespace API.Controllers
         //Delete user
         [HttpDelete("{id}")]
         public IActionResult DeleteUser(int id){
-            User DbUser = _dataContext.Users.Single(u => u.UserId == id);
-            _dataContext.Users.Remove(DbUser);
-            if(_dataContext.SaveChanges() > 0){
+            User DbUser = _userRepository.GetUserById(id);
+            _userRepository.RemoveEntity(DbUser);
+            if(_userRepository.SaveChanges()){
                 return Ok("User deleted");
             }
             throw new Exception("Failed to delete user");
